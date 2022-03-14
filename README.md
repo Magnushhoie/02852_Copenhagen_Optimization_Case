@@ -1,14 +1,14 @@
 # 02852_Copenhagen_Optimization_Case
 
 To-do:
-- [ ] Exploratory data analysis (trends etc)
-- [ ] Missing data
-- [ ] Handling features (categorical vs continuous)
-- [ ] Feature engineering (COVID-factor etc)
-- [ ] Features
-    - [ ] Time
-    - [ ] Calendar / seasonality
-    - [ ] Geographic?
+- [ ] Exploratory data analysis (trends etc) (both)
+- [ ] Missing data (Rahul)
+- [ ] Handling features (categorical vs continuous) (both)
+- [ ] Feature engineering (COVID-factor etc) (Magnus)
+- [ ] Features (Rahul)
+    - [ ] Time (Rahul)
+    - [ ] Calendar / seasonality (Rahul)
+    - [ ] Geographic (Magnus)
 - [ ] Baseline model (Linear Regression)
 - [ ] Time-series mdoel
 - [ ] Report
