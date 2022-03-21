@@ -62,8 +62,7 @@ def add_flight_counts(df_proc, time_col="ScheduleTime"):
     time = df_proc["ScheduleTime"].dt
 
     df_proc["FlightCount_week"] = np.nan
-    df_proc["SectorCount_week"] = np.nan
-    df_proc["AirlineCount_week"] = np.nan
+
     for year in [2021, 2022]:
         for week in sorted(time.isocalendar().week.unique()):
             m = np.logical_and(time.isocalendar().week == week, time.year == year)
@@ -73,34 +72,20 @@ def add_flight_counts(df_proc, time_col="ScheduleTime"):
             mapped_counts = get_mapped_counts(subset_data, "FlightNumber")
             df_proc.loc[subset_data.index, "FlightCount_week"] = mapped_counts
 
-            # Map flights by unique flight number
-            mapped_counts = get_mapped_counts(subset_data, "Sector")
-            df_proc.loc[subset_data.index, "SectorCount_week"] = mapped_counts
-
-            # Map flights by unique flight number
-            mapped_counts = get_mapped_counts(subset_data, "Airline")
-            df_proc.loc[subset_data.index, "AirlineCount_week"] = mapped_counts
-            
-    df_proc["FlightCount_month"] = np.nan
-    df_proc["SectorCount_month"] = np.nan
-    df_proc["AirlineCount_month"] = np.nan
-    for year in [2021, 2022]:
-        for month in sorted(time.month.unique()):
-            m = np.logical_and(time.month == month, time.year == year)
-            subset_data = df_proc[m].copy()
-            
-            # Map flights by unique flight number
-            mapped_counts = get_mapped_counts(subset_data, "FlightNumber")
-            df_proc.loc[subset_data.index, "FlightCount_month"] = mapped_counts
-
-            # Map flights by unique flight number
-            mapped_counts = get_mapped_counts(subset_data, "Sector")
-            df_proc.loc[subset_data.index, "SectorCount_month"] = mapped_counts
-
-            # Map flights by unique flight number
-            mapped_counts = get_mapped_counts(subset_data, "Airline")
-            df_proc.loc[subset_data.index, "AirlineCount_month"] = mapped_counts
-
+    #df_proc["FlightCount_day"] = np.nan
+    #for year in [2021, 2022]:
+    #    subset_data = df_proc[time.year == year]
+    #    subset_time = subset_data[time_col].dt
+    #    counts_by_day = subset_data["FlightNumber"].groupby(subset_time.dayofyear).value_counts()
+    #
+    #    for day in range(1, 365+1):
+    #        m1 = time.dayofyear == day
+    #        m2 = time.year == year
+    #        mc = np.logical_and(m1, m2)
+    #        if np.sum(mc) >= 1:
+    #            mapped_counts = counts_by_day[day]
+    #            df_proc.loc[mc, "FlightCount_day"] = df_proc.loc[mc, "FlightNumber"].map(mapped_counts)
+        
     return df_proc
 
 def add_date_features(df_proc, time_col="ScheduleTime"):
@@ -276,6 +261,8 @@ def test_performance_continuous(y_pred, y_true, text=""):
 
     print(f"{text} MAE: {mae}, MSE: {mse}, Pearson {pearson}, Acc: {acc}")
 
+    return acc
+
 def get_top_coef_perc(model, features, exclude_cols=[],
                     exclude_zero=True, perc=False,
                     verbose=0):
@@ -327,10 +314,10 @@ def fit_model(model, X_train, y_train, X_val, y_val, verbose=0):
     model.fit(X_train.values, y_train.values)
 
     y_pred_train = model.predict(X_train.values)
-    test_performance_continuous(y_pred_train, y_train, text="Train:")
+    acc_train = test_performance_continuous(y_pred_train, y_train, text="Train:")
 
     y_pred_val = model.predict(X_val.values)
-    test_performance_continuous(y_pred_val, y_val, text="Valid:")
+    acc_val = test_performance_continuous(y_pred_val, y_val, text="Valid:")
 
     exclude_cols = ["Aircraft", "Destination", "Airline"]
     exclude_cols = []
@@ -340,7 +327,7 @@ def fit_model(model, X_train, y_train, X_val, y_val, verbose=0):
     except Exception as E:
         print("{E}")
 
-    return model
+    return model, acc_train, acc_val
 
 def select_features(X_train, y_train, X_val, y_val, features):
     """ Selects given features in dataset """
@@ -353,6 +340,10 @@ def filter_features(X_train, y_train, X_val, y_val, filter_list):
     features = X_train.columns
     for f in filter_list:
         features = features[~features.str.contains(f)]
+
+    excluded_features = X_train.columns[~X_train.columns.isin(features)]
+    print(f"Excluded {excluded_features}")
+    
 
     X_train2, y_train2, X_val2, y_val2 = select_features(X_train, y_train, X_val, y_val, features)
 
