@@ -1,31 +1,9 @@
-# 02852_Copenhagen_Optimization_Case
 
-To-do:
-- [ ] Exploratory data analysis (trends etc) (both)
-- [ ] Missing data (Rahul)
-- [ ] Handling features (categorical vs continuous) (both)
-- [ ] Feature engineering (COVID-factor etc) (Magnus)
-- [ ] Features (Rahul)
-    - [ ] Time (Rahul)
-    - [ ] Calendar / seasonality (Rahul)
-    - [ ] Geographic (Magnus)
-- [ ] Baseline model (Linear Regression)
-- [ ] Time-series mdoel
-- [ ] Report
-    - Introduction/Data description
-    - Model and method
-    - Model selection
-    - Missing values
-    - Factor handling
-    - Model validation
-    - Results
+# [Forecasting for airports, Copenhagen Optimization case competition](https://github.com/Magnushhoie/02852_Copenhagen_Optimization_Case/blob/main/docs/Case%20for%2002582%20-%20Forecasting%20for%20airports.pdf)
 
-Grading rubric:
-- Is the preprocessing and feature creation suitable?
-- Are the models and methods described accurately?
-- Is the argumentation for the models used in the case solid?
-- Is the described model selection accurate?
-- Is the described model validation accurate?
-- Is the argumentation for the model selection and validation accurate?
-- Are the categorical features handled correctly?
-- Is the estimation of the expected accuracy well described and the chosen method appropriate? And an overall assessmentJ
+### 02852_Copenhagen_Optimization_Case
+Case competition and project report for the [02582 Compuational Data Analysis course](https://www.imm.dtu.dk/courses/02582/), 
+
+This project build a Random Forest regressor to predict the relative fraction of occupied flight seats (Load Factor) for planned flights from the [Copenhagen Optimization](https://copenhagenoptimization.com/) flight dataset. The aim of the project is to build the best feature engineered dataset and model to minimize the mean absolute error for the March 2022 test set.
+
+The training dataset comprises 39 449 flights between the time-period of 1st January 2021 to 28th February 2022. The features include the the flight scheduled calendar time including time of day, flight number, airline, destination aircraft type, flight type, geographical sector and seat capacity.  The test set consists of planned flights for March 2022, without the target load factor values to predict.
