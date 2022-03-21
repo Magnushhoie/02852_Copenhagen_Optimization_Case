@@ -9,6 +9,23 @@ print("loaded")
 # Preprocessing
 import datetime
 
+def filter_exclude_months(df_proc, year, month_list, time_col="ScheduleTime"):
+    """ Removing specific months of year from df_proc """
+    time = df_proc["ScheduleTime"].dt
+
+    for month in month_list:
+        print(year, month)
+        exclude = np.logical_and(time.year == year, time.month == month)
+        df_proc = df_proc[~exclude]
+        print(np.sum(exclude))
+
+    return df_proc
+
+def filter_time_period(df_proc, start_date="2021-06-01", time_col="ScheduleTime"):
+    m = df_proc[time_col] >= start_date
+    return df_proc[m]
+
+
 def filter_exclude_time(df_proc, time_col="ScheduleTime", exclude_time="2021-02-01"):
     """ Exclude time-period before """
 
@@ -29,10 +46,7 @@ def add_flight_counts(df_proc, time_col="ScheduleTime"):
             m = np.logical_and(S.month == month, S.year == year)
             subset_data = df_proc[m].copy()
             month_idxs = subset_data.index
-            
-            #month_capacity = subset_data["SeatCapacity"].mean()
-            #df_proc.loc[month_idxs, "MonthCapacity"] = month_capacity
-            
+
             # Map monthly flights by unique flight number
             data = subset_data["FlightNumber"].value_counts()
             d = {m:c for m, c in zip(data.index, data.values)}
@@ -72,60 +86,7 @@ def add_flight_counts(df_proc, time_col="ScheduleTime"):
             mapped_counts = get_mapped_counts(subset_data, "FlightNumber")
             df_proc.loc[subset_data.index, "FlightCount_week"] = mapped_counts
 
-    #df_proc["FlightCount_day"] = np.nan
-    #for year in [2021, 2022]:
-    #    subset_data = df_proc[time.year == year]
-    #    subset_time = subset_data[time_col].dt
-    #    counts_by_day = subset_data["FlightNumber"].groupby(subset_time.dayofyear).value_counts()
-    #
-    #    for day in range(1, 365+1):
-    #        m1 = time.dayofyear == day
-    #        m2 = time.year == year
-    #        mc = np.logical_and(m1, m2)
-    #        if np.sum(mc) >= 1:
-    #            mapped_counts = counts_by_day[day]
-    #            df_proc.loc[mc, "FlightCount_day"] = df_proc.loc[mc, "FlightNumber"].map(mapped_counts)
-        
     return df_proc
-
-def add_date_features(df_proc, time_col="ScheduleTime"):
-    """Adds one-hot encoded time features from datetime column to df_proc"""
-
-    time_series = df_proc[time_col]
-    S = time_series.dt
-    S_time = S.hour + (S.minute/60)
-
-    df_time = pd.DataFrame({"t_month":S.month,
-                            "t_day":S.day,
-                            "t_time":S_time,
-                            "t_weekofyear":S.isocalendar().week,
-                            "t_dayofyear":S.day_of_year,
-                            "t_morning":np.logical_and(S_time >= 0, S_time < 12).astype(np.int64),
-                            "t_afternoon":np.logical_and(S_time >= 12, S_time < 16).astype(np.int64),
-                            "t_evening":np.logical_and(S_time >= 16, S_time < 20).astype(np.int64),
-                            "t_night":np.logical_and(S_time >= 20, S_time <= 24).astype(np.int64),
-                            "t_weekend":S.weekday.isin([4,5,6]),
-                            "t_weekday":S.weekday.isin([4,5,6]),
-                            "t_is_month_start":S.is_month_start,
-                            "t_is_month_end":S.is_month_end,
-                            "t_is_year_start":S.is_year_start,
-                            "t_is_year_end":S.is_year_end,
-                            "t_is_quarter_start":S.is_quarter_start,
-                            "t_is_quarter_end":S.is_quarter_end
-                            })
-
-    # Year 2021, 2022
-    df_year = pd.get_dummies(pd.Categorical(S.year)).astype(np.int64)
-    df_year.columns = ["t_year_" + str(s) for s in list(df_year.columns.values)]
-
-    # Weekday
-    df_weekday = pd.get_dummies(pd.Categorical(S.dayofweek)).astype(np.int64)
-    df_weekday.columns = ["t_dayofweek_" + str(s+1) for s in list(df_weekday.columns.values)]
-
-    df_out = pd.concat([df_proc, df_year, df_weekday, df_time], axis=1)
-    df_out.drop(time_col, axis=1)
-
-    return df_out
 
 def add_date_features(df_proc, time_col="ScheduleTime"):
     """Adds one-hot encoded time features from datetime column to df_proc"""
@@ -152,9 +113,6 @@ def add_date_features(df_proc, time_col="ScheduleTime"):
 def add_cat_features(df_proc, cat_cols):
     """Adds one-hot encoded columns from cat_columns to df_proc"""
     
-    #df_cat = df_raw_realized[["Airline", "Destination", "AircraftType", "FlightType", "Sector"]]
-    #include = ["Destination", "Sector", "FlightType", "AircraftType"]
-
     dfs = []
     for col in cat_cols:
         df = pd.get_dummies(pd.Categorical(df_proc[col]))
@@ -166,7 +124,6 @@ def add_cat_features(df_proc, cat_cols):
     df_out = df_out.drop(cat_cols, axis=1)
 
     return df_out
-
 
 def map_cat_as_numerical(df_proc, cat_cols, target_col):
     """ Maps categorical values to numerical by mean target value """
@@ -187,6 +144,26 @@ def map_cat_as_numerical(df_proc, cat_cols, target_col):
         df_proc[col] = df_proc[col].map(map_dict)
 
     return df_proc
+
+def map_cat_as_numerical_test(df_train, df_test, cat_cols, target_col):
+    """ Maps categorical values to numerical by mean target value """
+
+    targets = df_train[target_col]
+
+    for col in cat_cols:
+        map_dict = {}
+
+        uniq = df_train[col].unique()
+        for value in uniq:
+            m = df_train[col] == value
+            delta = targets[m].mean() - targets[~m].mean()
+
+            map_dict[value] = delta
+            
+        # Map values
+        df_test[col] = df_test[col].map(map_dict)
+
+    return df_test
 
 def normalize_minmax_cols(df_proc, norm_cols):
     """ Min-max normalizes norm_cols in df_proc """
@@ -246,6 +223,16 @@ def create_trainval(df_proc, val_months=[12], val_years=[2021], time_col="Schedu
     X_val, y_val = dataset_X.loc[val_idxs], dataset_y.loc[val_idxs]
 
     return X_train, y_train, X_val, y_val
+
+# Machine learning
+def create_test(df_proc, time_col="ScheduleTime"):
+    """ Creates test dataset """
+
+    # Remove target y column and any other columns to exclude
+    dataset_X = df_proc.drop([time_col], axis=1)
+    X_test = dataset_X
+
+    return X_test
 
 import sklearn.metrics as metrics
 import scipy as sc
@@ -327,7 +314,7 @@ def fit_model(model, X_train, y_train, X_val, y_val, verbose=0):
     except Exception as E:
         print("{E}")
 
-    return model, acc_train, acc_val
+    return model, acc_train, acc_val, y_pred_val
 
 def select_features(X_train, y_train, X_val, y_val, features):
     """ Selects given features in dataset """
