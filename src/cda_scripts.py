@@ -27,24 +27,79 @@ def add_flight_counts(df_proc, time_col="ScheduleTime"):
         for month in range(1, 12+1):
 
             m = np.logical_and(S.month == month, S.year == year)
-            month_data = df_proc[m].copy()
-            month_idxs = month_data.index
+            subset_data = df_proc[m].copy()
+            month_idxs = subset_data.index
             
-            #month_capacity = month_data["SeatCapacity"].mean()
+            #month_capacity = subset_data["SeatCapacity"].mean()
             #df_proc.loc[month_idxs, "MonthCapacity"] = month_capacity
             
             # Map monthly flights by unique flight number
-            data = month_data["FlightNumber"].value_counts()
+            data = subset_data["FlightNumber"].value_counts()
             d = {m:c for m, c in zip(data.index, data.values)}
-            mapped_counts = month_data.loc[month_idxs, "FlightNumber"].map(d).values
+            mapped_counts = subset_data.loc[month_idxs, "FlightNumber"].map(d).values
             df_proc.loc[month_idxs, "FlightCount"] = mapped_counts
 
             # Map monthly sector flights by sector
-            data = month_data["Sector"].value_counts()
+            data = subset_data["Sector"].value_counts()
             d = {m:c for m, c in zip(data.index, data.values)}
-            mapped_counts = month_data.loc[month_idxs, "Sector"].map(d).values
+            mapped_counts = subset_data.loc[month_idxs, "Sector"].map(d).values
             df_proc.loc[month_idxs, "SectorCount"] = mapped_counts
             
+
+    return df_proc
+
+def add_flight_counts(df_proc, time_col="ScheduleTime"):
+    """ Adds total count for flight number that month """
+
+    def get_mapped_counts(subset_data, col_name):
+        """ Maps counts for data """
+        data = subset_data[col_name].value_counts()
+        d = {m:c for m, c in zip(data.index, data.values)}
+        mapped_counts = subset_data[col_name].map(d).values
+                
+        return mapped_counts
+
+    time = df_proc["ScheduleTime"].dt
+
+    df_proc["FlightCount_week"] = np.nan
+    df_proc["SectorCount_week"] = np.nan
+    df_proc["AirlineCount_week"] = np.nan
+    for year in [2021, 2022]:
+        for week in sorted(time.isocalendar().week.unique()):
+            m = np.logical_and(time.isocalendar().week == week, time.year == year)
+            subset_data = df_proc[m].copy()
+            
+            # Map flights by unique flight number
+            mapped_counts = get_mapped_counts(subset_data, "FlightNumber")
+            df_proc.loc[subset_data.index, "FlightCount_week"] = mapped_counts
+
+            # Map flights by unique flight number
+            mapped_counts = get_mapped_counts(subset_data, "Sector")
+            df_proc.loc[subset_data.index, "SectorCount_week"] = mapped_counts
+
+            # Map flights by unique flight number
+            mapped_counts = get_mapped_counts(subset_data, "Airline")
+            df_proc.loc[subset_data.index, "AirlineCount_week"] = mapped_counts
+            
+    df_proc["FlightCount_month"] = np.nan
+    df_proc["SectorCount_month"] = np.nan
+    df_proc["AirlineCount_month"] = np.nan
+    for year in [2021, 2022]:
+        for month in sorted(time.month.unique()):
+            m = np.logical_and(time.month == month, time.year == year)
+            subset_data = df_proc[m].copy()
+            
+            # Map flights by unique flight number
+            mapped_counts = get_mapped_counts(subset_data, "FlightNumber")
+            df_proc.loc[subset_data.index, "FlightCount_month"] = mapped_counts
+
+            # Map flights by unique flight number
+            mapped_counts = get_mapped_counts(subset_data, "Sector")
+            df_proc.loc[subset_data.index, "SectorCount_month"] = mapped_counts
+
+            # Map flights by unique flight number
+            mapped_counts = get_mapped_counts(subset_data, "Airline")
+            df_proc.loc[subset_data.index, "AirlineCount_month"] = mapped_counts
 
     return df_proc
 
@@ -87,6 +142,28 @@ def add_date_features(df_proc, time_col="ScheduleTime"):
 
     return df_out
 
+def add_date_features(df_proc, time_col="ScheduleTime"):
+    """Adds one-hot encoded time features from datetime column to df_proc"""
+
+    time_series = df_proc[time_col]
+    S = time_series.dt
+    S_time = S.hour + (S.minute/60)
+
+    df_time = pd.DataFrame({"t_dayofyear":S.day_of_year,
+                            "t_dayofmonth":S.day,
+                            "t_dayofweek":S.dayofweek,
+                            "t_timeofday":S_time,
+                            })
+
+    # Year 2021, 2022
+    #df_year = pd.get_dummies(pd.Categorical(S.year)).astype(np.int64)
+    #df_year.columns = ["t_year_" + str(s) for s in list(df_year.columns.values)]
+
+    df_out = pd.concat([df_proc, df_time], axis=1)
+    df_out.drop(time_col, axis=1)
+
+    return df_out
+
 def add_cat_features(df_proc, cat_cols):
     """Adds one-hot encoded columns from cat_columns to df_proc"""
     
@@ -105,6 +182,27 @@ def add_cat_features(df_proc, cat_cols):
 
     return df_out
 
+
+def map_cat_as_numerical(df_proc, cat_cols, target_col):
+    """ Maps categorical values to numerical by mean target value """
+
+    targets = df_proc[target_col]
+
+    for col in cat_cols:
+        map_dict = {}
+
+        uniq = df_proc[col].unique()
+        for value in uniq:
+            m = df_proc[col] == value
+            delta = targets[m].mean() - targets[~m].mean()
+
+            map_dict[value] = delta
+            
+        # Map values
+        df_proc[col] = df_proc[col].map(map_dict)
+
+    return df_proc
+
 def normalize_minmax_cols(df_proc, norm_cols):
     """ Min-max normalizes norm_cols in df_proc """
 
@@ -118,13 +216,12 @@ def normalize_minmax_cols(df_proc, norm_cols):
 
     return df_proc
 
-def add_time_delta(df_proc, end_time="2022-03-31", time_col="ScheduleTime"):
+def add_time_delta(df_proc, start_time="2021-01-01", time_col="ScheduleTime"):
     """Adds column representing time proximity to end date in fractional months"""
-    end_time = pd.to_datetime(end_time)
+    start_time = pd.to_datetime(start_time)
 
     df = df_proc[time_col]
-    time_delta =  (df - end_time) / np.timedelta64(1, "M") * -1
-    time_delta = 1/time_delta
+    time_delta =  (df - start_time) / np.timedelta64(1, "M")
     time_delta = (time_delta - time_delta.min())
 
     df_proc["t_delta"] = time_delta
@@ -143,23 +240,21 @@ def remove_columns(df_proc, exclude_cols):
 
 
 # Machine learning
-def create_trainval(df_proc, val_months, val_year="t_year_2021", exclude_cols=["ScheduleTime"], y_col="LoadFactor"):
+def create_trainval(df_proc, val_months=[12], val_years=[2021], time_col="ScheduleTime", y_col="LoadFactor"):
     """ Creates training and validation datasets by selected months/years """
 
+    time = df_proc[time_col].dt
+
     # FloatingPointError
-    m1 = df_proc[val_year] == True
-    m2 = df_proc["t_month"].isin(val_months)
+    m1 = time.year.isin(val_years)
+    m2 = time.month.isin(val_months)
     mc = np.logical_and(m1, m2)
 
-    val_idxs = df_proc[~mc].index
-    train_idxs = df_proc[mc].index
+    val_idxs = df_proc[mc].index
+    train_idxs = df_proc[~mc].index
 
     # Remove target y column and any other columns to exclude
-    y_col = "LoadFactor"
-    exclude_cols = [y_col] + exclude_cols
-    print(f"Excluding cols in features: {exclude_cols}")
-
-    dataset_X = df_proc.drop(exclude_cols, axis=1)
+    dataset_X = df_proc.drop([time_col, y_col], axis=1)
     dataset_y = df_proc[y_col]
 
     X_train, y_train = dataset_X.loc[train_idxs], dataset_y.loc[train_idxs]
@@ -172,14 +267,18 @@ import scipy as sc
 def test_performance_continuous(y_pred, y_true, text=""):
     # 
     mae = np.round(metrics.mean_absolute_error(y_pred, y_true), 3)
+    mse = np.round(metrics.mean_squared_error(y_pred, y_true), 3)
+    acc = np.round(1 - mae, 3)
 
     # Calculate pearson correlation beween predicted values (y_hat) and true values (y_true)
     pearson = sc.stats.pearsonr(y_true, y_pred)
     pearson, p = np.round(pearson[0], 3), pearson[1]
 
-    print(f"{text} MAE: {mae}, Pearson {pearson}")
+    print(f"{text} MAE: {mae}, MSE: {mse}, Pearson {pearson}, Acc: {acc}")
 
-def get_top_coef_perc(model, features, exclude_cols=[], exclude_zero=True, perc=False):
+def get_top_coef_perc(model, features, exclude_cols=[],
+                    exclude_zero=True, perc=False,
+                    verbose=0):
     """ Returns top model coefficients filtered for strings in exclude_cols """
     try:
         coef = model.coef_
@@ -198,7 +297,8 @@ def get_top_coef_perc(model, features, exclude_cols=[], exclude_zero=True, perc=
     # Percentage
     perc = top_coef / np.sum(coef)
     p = np.round(np.sum(perc)*100, 2) 
-    print(f"Filtered feature importance {p} %")
+    if verbose:
+        print(f"Filtered feature importance {p} %")
 
     return perc
 
@@ -236,7 +336,7 @@ def fit_model(model, X_train, y_train, X_val, y_val, verbose=0):
     exclude_cols = []
     
     try:
-        get_top_coef_perc(model, X_train, exclude_cols)
+        get_top_coef_perc(model, X_train, exclude_cols, verbose=verbose)
     except Exception as E:
         print("{E}")
 
