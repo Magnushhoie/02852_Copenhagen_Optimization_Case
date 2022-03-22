@@ -33,37 +33,7 @@ def filter_exclude_time(df_proc, time_col="ScheduleTime", exclude_time="2021-02-
     return df_proc[~exclude].reset_index()
 
 def add_flight_counts(df_proc, time_col="ScheduleTime"):
-    """ Adds total count for flight number that month """
-
-    S = df_proc["ScheduleTime"].dt
-    df_proc["FlightCount"] = np.nan
-    df_proc["SectorCount"] = np.nan
-    #df_proc["MonthCapacity"] = np.nan
-
-    for year in [2021, 2022]:
-        for month in range(1, 12+1):
-
-            m = np.logical_and(S.month == month, S.year == year)
-            subset_data = df_proc[m].copy()
-            month_idxs = subset_data.index
-
-            # Map monthly flights by unique flight number
-            data = subset_data["FlightNumber"].value_counts()
-            d = {m:c for m, c in zip(data.index, data.values)}
-            mapped_counts = subset_data.loc[month_idxs, "FlightNumber"].map(d).values
-            df_proc.loc[month_idxs, "FlightCount"] = mapped_counts
-
-            # Map monthly sector flights by sector
-            data = subset_data["Sector"].value_counts()
-            d = {m:c for m, c in zip(data.index, data.values)}
-            mapped_counts = subset_data.loc[month_idxs, "Sector"].map(d).values
-            df_proc.loc[month_idxs, "SectorCount"] = mapped_counts
-            
-
-    return df_proc
-
-def add_flight_counts(df_proc, time_col="ScheduleTime"):
-    """ Adds total count for flight number that month """
+    """ Adds total count for flight number that week """
 
     def get_mapped_counts(subset_data, col_name):
         """ Maps counts for data """
@@ -100,10 +70,6 @@ def add_date_features(df_proc, time_col="ScheduleTime"):
                             "t_dayofweek":S.dayofweek,
                             "t_timeofday":S_time,
                             })
-
-    # Year 2021, 2022
-    #df_year = pd.get_dummies(pd.Categorical(S.year)).astype(np.int64)
-    #df_year.columns = ["t_year_" + str(s) for s in list(df_year.columns.values)]
 
     df_out = pd.concat([df_proc, df_time], axis=1)
     df_out.drop(time_col, axis=1)
@@ -144,26 +110,6 @@ def map_cat_as_numerical(df_proc, cat_cols, target_col):
         df_proc[col] = df_proc[col].map(map_dict)
 
     return df_proc
-
-def map_cat_as_numerical_test(df_train, df_test, cat_cols, target_col):
-    """ Maps categorical values to numerical by mean target value """
-
-    targets = df_train[target_col]
-
-    for col in cat_cols:
-        map_dict = {}
-
-        uniq = df_train[col].unique()
-        for value in uniq:
-            m = df_train[col] == value
-            delta = targets[m].mean() - targets[~m].mean()
-
-            map_dict[value] = delta
-            
-        # Map values
-        df_test[col] = df_test[col].map(map_dict)
-
-    return df_test
 
 def normalize_minmax_cols(df_proc, norm_cols):
     """ Min-max normalizes norm_cols in df_proc """
