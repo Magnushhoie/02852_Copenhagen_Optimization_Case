@@ -10,6 +10,8 @@ The training dataset comprises 39 449 flights between the time-period of 1st Jan
 
 ### See submitted [case_report_public.pdf](https://github.com/Magnushhoie/02852_Copenhagen_Optimization_Case/blob/main/case_report_public.pdf)
 
+### See [Jupyter notebook](https://github.com/Magnushhoie/02852_Copenhagen_Optimization_Case/blob/main/notebooks/mh_1_final.ipynb) with code
+
 <img src="https://github.com/Magnushhoie/02852_Copenhagen_Optimization_Case/blob/main/figures/LOMO_pred.jpg" width=50% height=50%>
 
 <img src="https://github.com/Magnushhoie/02852_Copenhagen_Optimization_Case/blob/main/figures/LOMO_true.jpg" width=50% height=50%>
