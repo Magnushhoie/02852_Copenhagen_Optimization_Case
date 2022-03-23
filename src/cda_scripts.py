@@ -111,6 +111,26 @@ def map_cat_as_numerical(df_proc, cat_cols, target_col):
 
     return df_proc
 
+def map_cat_as_numerical_test(df_train, df_test, cat_cols, target_col):
+    """ Maps categorical values to numerical by mean target value """
+
+    targets = df_train[target_col]
+
+    for col in cat_cols:
+        map_dict = {}
+
+        uniq = df_train[col].unique()
+        for value in uniq:
+            m = df_train[col] == value
+            delta = targets[m].mean() - targets[~m].mean()
+
+            map_dict[value] = delta
+
+        # Map values
+        df_test[col] = df_test[col].map(map_dict)
+
+    return df_test
+
 def normalize_minmax_cols(df_proc, norm_cols):
     """ Min-max normalizes norm_cols in df_proc """
 
